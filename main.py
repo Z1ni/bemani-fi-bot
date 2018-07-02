@@ -220,6 +220,9 @@ logger.addHandler(handler)
 # Read config
 read_config()
 
+# Remove bot help command
+bot.remove_command("help")
+
 # Run
 logger.info("Starting event loop")
 bot.run(config["token"])
