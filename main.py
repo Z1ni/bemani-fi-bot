@@ -19,13 +19,16 @@ logger = None
 @bot.event
 @asyncio.coroutine
 def on_command_error(exception, ctx):
-    # Add error reaction to the message
-    yield from bot.add_reaction(ctx.message, "\u274c")
-
     # Log
     if type(exception) is discord.ext.commands.errors.MissingRequiredArgument:
         logger.warning("User %s did not supply enough arguments for command \"%s\"" % (ctx.message.author, ctx.command))
+        # Add error reaction to the message
+        yield from bot.add_reaction(ctx.message, "\u274c")
         return
+    elif type(exception) is discord.ext.commands.errors.CommandNotFound:
+        logger.warning("User %s tried to run non-existant command \"%s\"" % (ctx.message.author, ctx.message.content))
+        return
+
     logger.error("Exception in command \"%s\"" % ctx.command)
     trace_str = traceback.format_exception(type(exception), exception, exception.__traceback__)
     for row in trace_str:
