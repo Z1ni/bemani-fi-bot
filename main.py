@@ -40,8 +40,14 @@ def on_command_error(exception, ctx):
 def on_ready():
     logger.info("Logged in as %s" % bot.user)
 
+    # Change nick
+    nick = config["nick"]
+    logger.info("Changing nick to %s" % nick)
+    server = discord.utils.get(bot.servers)
+    yield from bot.change_nickname(server.me, nick)
+
     # Get roles that have names in the config
-    game_roles = list(filter(lambda r: r.name in config["roles"], discord.utils.get(bot.servers).roles))
+    game_roles = list(filter(lambda r: r.name in config["roles"], server.roles))
     for role in game_roles:
         roles[role.name.lower()] = role
 
