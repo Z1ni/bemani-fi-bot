@@ -81,11 +81,15 @@ def add(ctx, game):
             logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
             yield from bot.say("Could not get your user info. Are you on the server?")
             return
+    elif ctx.message.channel.name != config["bot_channel"]:
+        # Only allow this from bot channel
+        logger.warning("User %s tried to add game role in #%s" % (user, ctx.message.channel.name))
+        return
 
     game = game.lower()
     role = roles.get(game)
     if role is None:
-        logger.warning("No role with name \"%s\"" % game)
+        logger.warning("User %s tried to add nonexistant game role \"%s\"" % (user, game))
         # Add error reaction
         yield from bot.add_reaction(ctx.message, "\u274c")
         return
@@ -112,6 +116,10 @@ def remove(ctx, game):
             logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
             yield from bot.say("Could not get your user info. Are you on the server?")
             return
+    elif ctx.message.channel.name != config["bot_channel"]:
+        # Only allow this from bot channel
+        logger.warning("User %s tried to remove game role in #%s" % (user, ctx.message.channel.name))
+        return
 
     game = game.lower()
     remove_all_game_roles = game == "*"
@@ -119,7 +127,7 @@ def remove(ctx, game):
     if not remove_all_game_roles:
         role = roles.get(game)
         if role is None:
-            logger.warning("No role with name \"%s\"" % game)
+            logger.warning("User %s tried to add nonexistant game role \"%s\"" % (user, game))
             # Add error reaction
             yield from bot.add_reaction(ctx.message, "\u274c")
             return
