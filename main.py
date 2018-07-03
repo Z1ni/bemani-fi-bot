@@ -127,7 +127,7 @@ def remove(ctx, game):
     if not remove_all_game_roles:
         role = roles.get(game)
         if role is None:
-            logger.warning("User %s tried to add nonexistant game role \"%s\"" % (user, game))
+            logger.warning("User %s tried to remove nonexistant game role \"%s\"" % (user, game))
             # Add error reaction
             yield from bot.add_reaction(ctx.message, "\u274c")
             return
