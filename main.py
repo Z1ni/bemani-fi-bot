@@ -1,8 +1,7 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.7
 
 import discord
 from discord.ext import commands
-import asyncio
 import logging
 import sys
 import traceback
@@ -17,13 +16,12 @@ logger = None
 ################################################################################
 
 @bot.event
-@asyncio.coroutine
-def on_command_error(exception, ctx):
+async def on_command_error(exception, ctx):
     # Log
     if type(exception) is discord.ext.commands.errors.MissingRequiredArgument:
         logger.warning("User %s did not supply enough arguments for command \"%s\"" % (ctx.message.author, ctx.command))
         # Add error reaction to the message
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await bot.add_reaction(ctx.message, "\u274c")
         return
     elif type(exception) is discord.ext.commands.errors.CommandNotFound:
         logger.warning("User %s tried to run non-existant command \"%s\"" % (ctx.message.author, ctx.message.content))
@@ -36,15 +34,14 @@ def on_command_error(exception, ctx):
 
 
 @bot.event
-@asyncio.coroutine
-def on_ready():
+async def on_ready():
     logger.info("Logged in as %s" % bot.user)
 
     # Change nick
     nick = config["nick"]
     logger.info("Changing nick to %s" % nick)
     server = discord.utils.get(bot.servers)
-    yield from bot.change_nickname(server.me, nick)
+    await bot.change_nickname(server.me, nick)
 
     # Get roles that have names in the config
     game_roles = list(filter(lambda r: r.name in config["roles"], server.roles))
@@ -58,17 +55,15 @@ def on_ready():
 
 
 @bot.group(pass_context=True)
-@asyncio.coroutine
-def game(ctx):
+async def game(ctx):
     if ctx.invoked_subcommand is None:
         logger.warning("No subcommand given for game command")
         # Add error reaction
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await bot.add_reaction(ctx.message, "\u274c")
 
 
 @game.command(pass_context=True)
-@asyncio.coroutine
-def add(ctx, game):
+async def add(ctx, game):
     user = ctx.message.author
 
     if ctx.message.channel.is_private:
@@ -79,7 +74,7 @@ def add(ctx, game):
         user = server.get_member_named(str(user))
         if user is None:
             logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            await bot.say("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
@@ -91,19 +86,18 @@ def add(ctx, game):
     if role is None:
         logger.warning("User %s tried to add nonexistant game role \"%s\"" % (user, game))
         # Add error reaction
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await bot.add_reaction(ctx.message, "\u274c")
         return
 
     # Add the new role
     logger.info("Adding role %s for user %s" % (role.name, user))
-    yield from bot.add_roles(user, role)
+    await bot.add_roles(user, role)
     # Add success reaction
-    yield from bot.add_reaction(ctx.message, "\u2705")
+    await bot.add_reaction(ctx.message, "\u2705")
 
 
 @game.command(pass_context=True)
-@asyncio.coroutine
-def remove(ctx, game):
+async def remove(ctx, game):
     user = ctx.message.author
 
     if ctx.message.channel.is_private:
@@ -114,7 +108,7 @@ def remove(ctx, game):
         user = server.get_member_named(str(user))
         if user is None:
             logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            await bot.say("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
@@ -129,26 +123,25 @@ def remove(ctx, game):
         if role is None:
             logger.warning("User %s tried to remove nonexistant game role \"%s\"" % (user, game))
             # Add error reaction
-            yield from bot.add_reaction(ctx.message, "\u274c")
+            await bot.add_reaction(ctx.message, "\u274c")
             return
 
         # Remove role from user
         logger.info("Removing game role %s from user %s" % (role.name, user))
-        yield from bot.remove_roles(user, role)
+        await bot.remove_roles(user, role)
         # Add success reaction
-        yield from bot.add_reaction(ctx.message, "\u2705")
+        await bot.add_reaction(ctx.message, "\u2705")
     else:
         # Remove all game roles from user if the game parameter was "*"
         logger.info("Removing all game roles from %s" % user)
         game_roles = [i[1] for i in roles.items()]
-        yield from bot.remove_roles(user, *game_roles)
+        await bot.remove_roles(user, *game_roles)
         # Add success reaction
-        yield from bot.add_reaction(ctx.message, "\u2705")
+        await bot.add_reaction(ctx.message, "\u2705")
 
 
 @bot.command(pass_context=True)
-@asyncio.coroutine
-def quit(ctx):
+async def quit(ctx):
     # Check if the user is an admin
     user = ctx.message.author
 
@@ -159,7 +152,7 @@ def quit(ctx):
         user = server.get_member_named(str(user))
         if user is None:
             logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            await bot.say("Could not get your user info. Are you on the server?")
             return
 
     has_admin_role = False
@@ -177,11 +170,11 @@ def quit(ctx):
     if not permitted:
         logger.info("User %s tried to quit bot, denied" % user)
         # Add error reaction
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await bot.add_reaction(ctx.message, "\u274c")
         return
 
     logger.info("Quitting")
-    yield from bot.close()
+    await bot.close()
 
 ################################################################################
 
