@@ -6,6 +6,7 @@ import asyncio
 import logging
 import sys
 import traceback
+import subprocess
 
 description = """BemaniFiBot"""
 bot = commands.Bot(command_prefix="!", description=description)
@@ -13,6 +14,7 @@ config = {}
 roles = {}
 area_roles = {}
 logger = None
+git_hash = None
 
 
 ################################################################################
@@ -246,6 +248,31 @@ def area_remove(ctx, area):
 
 @bot.command(pass_context=True)
 @asyncio.coroutine
+def version(ctx):
+    user = ctx.message.author
+
+    if ctx.message.channel.is_private:
+        # Private message
+        # Get the user (Member) from the server
+        server = discord.utils.get(bot.servers)
+        user = server.get_member_named(str(user))
+        if user is None:
+            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
+            yield from bot.say("Could not get your user info. Are you on the server?")
+            return
+    elif ctx.message.channel.name != config["bot_channel"]:
+        # Only allow this from bot channel
+        logger.warning("User %s tried to query version info in #%s" % (user, ctx.message.channel.name))
+        return
+
+    logger.info("User %s queried version information" % user)
+
+    # Return version info
+    yield from bot.say("Git commit: %s" % (git_hash or "?"))
+
+
+@bot.command(pass_context=True)
+@asyncio.coroutine
 def quit(ctx):
     # Check if the user is an admin
     user = ctx.message.author
@@ -341,6 +368,11 @@ file_handler = logging.FileHandler("bot.log", mode="w", encoding="utf-8")
 file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%H:%M:%S"))
 logger.addHandler(file_handler)
 
+# Get git hash, if possible
+try:
+    git_hash = subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
+except Exception:
+    logger.warning("Could not get Git hash")
 
 # Read config
 read_config()
@@ -349,6 +381,7 @@ read_config()
 bot.remove_command("help")
 
 # Run
+logger.info("Current Git commit: %s" % (git_hash or "?"))
 logger.info("Starting event loop")
 bot.run(config["token"])
 logger.info("Event loop ended")
