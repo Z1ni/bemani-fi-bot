@@ -19,6 +19,9 @@ token = token_string_here
 # Game roles
 roles = [SDVX, IIDX, Pop'n]
 
+# Area roles
+areas = [Finland, Japan]
+
 # Admin role name
 # If there isn't an admin role, leave empty
 admin_role = role_name

@@ -11,6 +11,7 @@ description = """BemaniFiBot"""
 bot = commands.Bot(command_prefix="!", description=description)
 config = {}
 roles = {}
+area_roles = {}
 logger = None
 
 
@@ -51,8 +52,16 @@ def on_ready():
     for role in game_roles:
         roles[role.name.lower()] = role
 
+    # Get area roles
+    srv_area_roles = list(filter(lambda r: r.name in config["areas"], server.roles))
+    for role in srv_area_roles:
+        area_roles[role.name.lower()] = role
+
     known_roles_str = ", ".join([role.name for role in game_roles]) or "-"
-    logger.info("Known roles: %s" % known_roles_str)
+    logger.info("Known game roles: %s" % known_roles_str)
+
+    known_area_roles_str = ", ".join([role.name for role in srv_area_roles]) or "-"
+    logger.info("Known area roles: %s" % known_area_roles_str)
 
     logger.info("Ready")
 
@@ -142,6 +151,95 @@ def remove(ctx, game):
         logger.info("Removing all game roles from %s" % user)
         game_roles = [i[1] for i in roles.items()]
         yield from bot.remove_roles(user, *game_roles)
+        # Add success reaction
+        yield from bot.add_reaction(ctx.message, "\u2705")
+
+
+@bot.group(pass_context=True)
+@asyncio.coroutine
+def area(ctx):
+    if ctx.invoked_subcommand is None:
+        logger.warning("No subcommand given for area command")
+        # Add error reaction
+        yield from bot.add_reaction(ctx.message, "\u274c")
+
+
+@area.command(name="add", pass_context=True)
+@asyncio.coroutine
+def area_add(ctx, area):
+    user = ctx.message.author
+
+    if ctx.message.channel.is_private:
+        # Private message
+        logger.info("Area add request in private message from %s" % user)
+        # Get the user (Member) from the server
+        server = discord.utils.get(bot.servers)
+        user = server.get_member_named(str(user))
+        if user is None:
+            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
+            yield from bot.say("Could not get your user info. Are you on the server?")
+            return
+    elif ctx.message.channel.name != config["bot_channel"]:
+        # Only allow this from bot channel
+        logger.warning("User %s tried to add area role in #%s" % (user, ctx.message.channel.name))
+        return
+
+    area = area.lower()
+    role = area_roles.get(area)
+    if role is None:
+        logger.warning("User %s tried to add nonexistant area role \"%s\"" % (user, area))
+        # Add error reaction
+        yield from bot.add_reaction(ctx.message, "\u274c")
+        return
+
+    # Add the new role
+    logger.info("Adding role %s for user %s" % (role.name, user))
+    yield from bot.add_roles(user, role)
+    # Add success reaction
+    yield from bot.add_reaction(ctx.message, "\u2705")
+
+
+@area.command(name="remove", pass_context=True)
+@asyncio.coroutine
+def area_remove(ctx, area):
+    user = ctx.message.author
+
+    if ctx.message.channel.is_private:
+        # Private message
+        logger.info("Role removal request in private message from %s" % user)
+        # Get the user (Member) from the server
+        server = discord.utils.get(bot.servers)
+        user = server.get_member_named(str(user))
+        if user is None:
+            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
+            yield from bot.say("Could not get your user info. Are you on the server?")
+            return
+    elif ctx.message.channel.name != config["bot_channel"]:
+        # Only allow this from bot channel
+        logger.warning("User %s tried to remove area role in #%s" % (user, ctx.message.channel.name))
+        return
+
+    area = area.lower()
+    remove_all_area_roles = area == "*"
+
+    if not remove_all_area_roles:
+        role = area_roles.get(area)
+        if role is None:
+            logger.warning("User %s tried to remove nonexistant area role \"%s\"" % (user, area))
+            # Add error reaction
+            yield from bot.add_reaction(ctx.message, "\u274c")
+            return
+
+        # Remove role from user
+        logger.info("Removing area role %s from user %s" % (role.name, user))
+        yield from bot.remove_roles(user, role)
+        # Add success reaction
+        yield from bot.add_reaction(ctx.message, "\u2705")
+    else:
+        # Remove all area roles from user if the area parameter was "*"
+        logger.info("Removing all area roles from %s" % user)
+        area_role_entries = [i[1] for i in area_roles.items()]
+        yield from bot.remove_roles(user, *area_role_entries)
         # Add success reaction
         yield from bot.add_reaction(ctx.message, "\u2705")
 
