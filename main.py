@@ -20,16 +20,15 @@ git_hash = None
 ################################################################################
 
 @bot.event
-@asyncio.coroutine
-def on_command_error(exception, ctx):
+async def on_command_error(ctx, exception):
     # Log
     if type(exception) is discord.ext.commands.errors.MissingRequiredArgument:
-        logger.warning("User %s did not supply enough arguments for command \"%s\"" % (ctx.message.author, ctx.command))
+        logger.warning("User %s did not supply enough arguments for command \"%s\"" % (ctx.author, ctx.command))
         # Add error reaction to the message
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await ctx.message.add_reaction("\u274c")
         return
     elif type(exception) is discord.ext.commands.errors.CommandNotFound:
-        logger.warning("User %s tried to run non-existant command \"%s\"" % (ctx.message.author, ctx.message.content))
+        logger.warning("User %s tried to run non-existant command \"%s\"" % (ctx.author, ctx.message.content))
         return
 
     logger.error("Exception in command \"%s\"" % ctx.command)
@@ -39,15 +38,15 @@ def on_command_error(exception, ctx):
 
 
 @bot.event
-@asyncio.coroutine
-def on_ready():
+async def on_ready():
     logger.info("Logged in as %s" % bot.user)
 
     # Change nick
     nick = config["nick"]
     logger.info("Changing nick to %s" % nick)
-    server = discord.utils.get(bot.servers)
-    yield from bot.change_nickname(server.me, nick)
+    server = discord.utils.get(bot.guilds)
+    await bot.user.edit(username=nick)
+    # await bot.change_nickname(server.me, nick)
 
     # Get roles that have names in the config
     game_roles = list(filter(lambda r: r.name in config["roles"], server.roles))
@@ -68,29 +67,27 @@ def on_ready():
     logger.info("Ready")
 
 
-@bot.group(pass_context=True)
-@asyncio.coroutine
-def game(ctx):
+@bot.group()
+async def game(ctx):
     if ctx.invoked_subcommand is None:
         logger.warning("No subcommand given for game command")
         # Add error reaction
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await ctx.message.add_reaction("\u274c")
 
 
-@game.command(pass_context=True)
-@asyncio.coroutine
-def add(ctx, game):
-    user = ctx.message.author
+@game.command()
+async def add(ctx, game):
+    user = ctx.author
 
-    if ctx.message.channel.is_private:
+    if isinstance(ctx.channel, discord.DMChannel):
         # Private message
         logger.info("Role add request in private message from %s" % user)
         # Get the user (Member) from the server
-        server = discord.utils.get(bot.servers)
+        server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
@@ -102,30 +99,29 @@ def add(ctx, game):
     if role is None:
         logger.warning("User %s tried to add nonexistant game role \"%s\"" % (user, game))
         # Add error reaction
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await ctx.message.add_reaction("\u274c")
         return
 
     # Add the new role
     logger.info("Adding role %s for user %s" % (role.name, user))
-    yield from bot.add_roles(user, role)
+    await user.add_roles(role)
     # Add success reaction
-    yield from bot.add_reaction(ctx.message, "\u2705")
+    await ctx.message.add_reaction("\u2705")
 
 
-@game.command(pass_context=True)
-@asyncio.coroutine
-def remove(ctx, game):
-    user = ctx.message.author
+@game.command()
+async def remove(ctx, game):
+    user = ctx.author
 
-    if ctx.message.channel.is_private:
+    if isinstance(ctx.channel, discord.DMChannel):
         # Private message
         logger.info("Role removal request in private message from %s" % user)
         # Get the user (Member) from the server
-        server = discord.utils.get(bot.servers)
+        server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
@@ -140,46 +136,44 @@ def remove(ctx, game):
         if role is None:
             logger.warning("User %s tried to remove nonexistant game role \"%s\"" % (user, game))
             # Add error reaction
-            yield from bot.add_reaction(ctx.message, "\u274c")
+            await ctx.message.add_reaction("\u274c")
             return
 
         # Remove role from user
         logger.info("Removing game role %s from user %s" % (role.name, user))
-        yield from bot.remove_roles(user, role)
+        await user.remove_roles(role)
         # Add success reaction
-        yield from bot.add_reaction(ctx.message, "\u2705")
+        await ctx.message.add_reaction("\u2705")
     else:
         # Remove all game roles from user if the game parameter was "*"
         logger.info("Removing all game roles from %s" % user)
         game_roles = [i[1] for i in roles.items()]
-        yield from bot.remove_roles(user, *game_roles)
+        await user.remove_roles(*game_roles)
         # Add success reaction
-        yield from bot.add_reaction(ctx.message, "\u2705")
+        await ctx.message.add_reaction("\u2705")
 
 
-@bot.group(pass_context=True)
-@asyncio.coroutine
-def area(ctx):
+@bot.group()
+async def area(ctx):
     if ctx.invoked_subcommand is None:
         logger.warning("No subcommand given for area command")
         # Add error reaction
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await ctx.message.add_reaction("\u274c")
 
 
-@area.command(name="add", pass_context=True)
-@asyncio.coroutine
-def area_add(ctx, area):
-    user = ctx.message.author
+@area.command(name="add")
+async def area_add(ctx, area):
+    user = ctx.author
 
-    if ctx.message.channel.is_private:
+    if isinstance(ctx.channel, discord.DMChannel):
         # Private message
         logger.info("Area add request in private message from %s" % user)
         # Get the user (Member) from the server
-        server = discord.utils.get(bot.servers)
+        server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
@@ -191,30 +185,29 @@ def area_add(ctx, area):
     if role is None:
         logger.warning("User %s tried to add nonexistant area role \"%s\"" % (user, area))
         # Add error reaction
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await ctx.message.add_reaction("\u274c")
         return
 
     # Add the new role
     logger.info("Adding role %s for user %s" % (role.name, user))
-    yield from bot.add_roles(user, role)
+    await user.add_roles(role)
     # Add success reaction
-    yield from bot.add_reaction(ctx.message, "\u2705")
+    await ctx.message.add_reaction("\u2705")
 
 
-@area.command(name="remove", pass_context=True)
-@asyncio.coroutine
-def area_remove(ctx, area):
-    user = ctx.message.author
+@area.command(name="remove")
+async def area_remove(ctx, area):
+    user = ctx.author
 
-    if ctx.message.channel.is_private:
+    if isinstance(ctx.channel, discord.DMChannel):
         # Private message
         logger.info("Role removal request in private message from %s" % user)
         # Get the user (Member) from the server
-        server = discord.utils.get(bot.servers)
+        server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
@@ -229,36 +222,35 @@ def area_remove(ctx, area):
         if role is None:
             logger.warning("User %s tried to remove nonexistant area role \"%s\"" % (user, area))
             # Add error reaction
-            yield from bot.add_reaction(ctx.message, "\u274c")
+            await ctx.message.add_reaction("\u274c")
             return
 
         # Remove role from user
         logger.info("Removing area role %s from user %s" % (role.name, user))
-        yield from bot.remove_roles(user, role)
+        await user.remove_roles(role)
         # Add success reaction
-        yield from bot.add_reaction(ctx.message, "\u2705")
+        await ctx.message.add_reaction("\u2705")
     else:
         # Remove all area roles from user if the area parameter was "*"
         logger.info("Removing all area roles from %s" % user)
         area_role_entries = [i[1] for i in area_roles.items()]
-        yield from bot.remove_roles(user, *area_role_entries)
+        await user.remove_roles(*area_role_entries)
         # Add success reaction
-        yield from bot.add_reaction(ctx.message, "\u2705")
+        await ctx.message.add_reaction("\u2705")
 
 
-@bot.command(pass_context=True)
-@asyncio.coroutine
-def version(ctx):
-    user = ctx.message.author
+@bot.command()
+async def version(ctx):
+    user = ctx.author
 
-    if ctx.message.channel.is_private:
+    if isinstance(ctx.channel, discord.DMChannel):
         # Private message
         # Get the user (Member) from the server
-        server = discord.utils.get(bot.servers)
+        server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
@@ -268,45 +260,44 @@ def version(ctx):
     logger.info("User %s queried version information" % user)
 
     # Return version info
-    yield from bot.say("Git commit: %s" % (git_hash or "?"))
+    await ctx.send("Git commit: %s" % (git_hash or "?"))
 
 
-@bot.command(pass_context=True)
-@asyncio.coroutine
-def quit(ctx):
+@bot.command()
+async def quit(ctx):
     # Check if the user is an admin
-    user = ctx.message.author
+    user = ctx.author
 
-    if ctx.message.channel.is_private:
+    if isinstance(ctx.channel, discord.DMChannel):
         # Private message
         # Get the user (Member) from the server
-        server = discord.utils.get(bot.servers)
+        server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.message.author, server))
-            yield from bot.say("Could not get your user info. Are you on the server?")
+            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            await ctx.send("Could not get your user info. Are you on the server?")
             return
 
     has_admin_role = False
     admin_role_name = config["admin_role"]
     if len(admin_role_name) > 0:
         # Get admin role
-        admin_role = discord.utils.get(discord.utils.get(bot.servers).roles, name=admin_role_name)
+        admin_role = discord.utils.get(discord.utils.get(bot.guilds).roles, name=admin_role_name)
         has_admin_role = admin_role in user.roles
     else:
         logger.debug("No admin role configured, not checking")
 
-    permissions = user.server_permissions
+    permissions = user.guild_permissions
     permitted = permissions.administrator or has_admin_role
 
     if not permitted:
         logger.info("User %s tried to quit bot, denied" % user)
         # Add error reaction
-        yield from bot.add_reaction(ctx.message, "\u274c")
+        await ctx.message.add_reaction("\u274c")
         return
 
     logger.info("Quitting")
-    yield from bot.close()
+    await bot.close()
 
 ################################################################################
 
