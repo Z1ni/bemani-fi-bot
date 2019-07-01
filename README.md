@@ -1,8 +1,8 @@
 # Discord bot for Bemani Finland
 
 ## Requirements
-* Python 3.4+
-* discord.py 0.16.12 (or better, the API might change without warning so be careful)
+* Python 3.5.3+
+* discord.py 1.* (currently pinned to 1.2.3)
 
 ## Installation
 1. Setup virtualenv
