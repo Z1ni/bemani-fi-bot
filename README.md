@@ -5,10 +5,33 @@
 * discord.py 1.* (currently pinned to 1.2.3)
 
 ## Installation
+### Docker (recommended)
+1. Install Docker
+2. Create bemani.conf and edit it (see below)
+```bash
+$ cp bemani.conf.example bemani.conf
+$ vim bemani.conf
+```
+3. Build image
+```bash
+# Use build script to populate !version command git commit hash
+$ ./docker-build.sh --tag=bemanifibot .
+# Or build without version information
+$ docker build --tag=bemanifibot .
+```
+4. Run
+```bash
+# Interactive
+$ docker run -it bemanifibot
+# Daemon
+$ docker run -d bemanifibot
+```
+
+### Virtualenv
 1. Setup virtualenv
 ```bash
 $ virtualenv venv
-$ . venv/bin/activate
+$ source venv/bin/activate
 ```
 2. Install requirements
 ```bash
