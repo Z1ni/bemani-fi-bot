@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 import asyncio
 import logging
+import os
 import sys
 import traceback
 import subprocess
@@ -363,7 +364,9 @@ logger.addHandler(file_handler)
 try:
     git_hash = subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
 except Exception:
-    logger.warning("Could not get Git hash")
+    git_hash = os.environ.get("GIT_COMMIT")
+    if not git_hash:
+        logger.warning("Could not get Git hash")
 
 # Read config
 read_config()
