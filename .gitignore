@@ -108,3 +108,6 @@ venv.bak/
 
 # Ignore Sublime project files
 *.sublime-*
+
+# Ignore VSCode files
+.vscode/
