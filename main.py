@@ -315,6 +315,8 @@ def read_config():
         sys.exit(1)
 
     for line_no, line in enumerate(lines):
+        if len(line.strip()) == 0:
+            continue
         if line.startswith("#"):
             continue
         key, value = (None, None)
@@ -327,7 +329,7 @@ def read_config():
                 logger.debug("Parsed list: %s" % value)
         except Exception:
             # Invalid line
-            logger.error("Invalid config line at %d" % line_no)
+            logger.error("Invalid config line at %d" % line_no + 1)
             continue
         config[key] = value
     logger.info("Config read")
