@@ -47,7 +47,6 @@ async def on_ready():
     logger.info("Changing nick to %s" % nick)
     server = discord.utils.get(bot.guilds)
     await bot.user.edit(username=nick)
-    # await bot.change_nickname(server.me, nick)
 
     # Get roles that have names in the config
     game_roles = list(filter(lambda r: r.name in config["roles"], server.roles))
