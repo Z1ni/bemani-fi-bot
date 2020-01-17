@@ -337,29 +337,32 @@ def read_config():
 if __name__ != "__main__":
     sys.exit(0)
 
+log_to_file = "-l" in sys.argv[1:]
 
 # Setup discord.py logging
 discord_logger = logging.getLogger("discord")
 discord_logger.setLevel(logging.WARNING)
 discord_handler = logging.StreamHandler()
-discord_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%H:%M:%S"))
+discord_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
 discord_logger.addHandler(discord_handler)
 # Log to file
-discord_file_handler = logging.FileHandler("discord.log", mode="w", encoding="utf-8")
-discord_file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%H:%M:%S"))
-discord_logger.addHandler(discord_file_handler)
+if log_to_file:
+    discord_file_handler = logging.FileHandler("discord.log", mode="w", encoding="utf-8")
+    discord_file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+    discord_logger.addHandler(discord_file_handler)
 
 
 # Setup own logging
 logger = logging.getLogger("bot")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%H:%M:%S"))
+handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
 logger.addHandler(handler)
 # Log to file
-file_handler = logging.FileHandler("bot.log", mode="w", encoding="utf-8")
-file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%H:%M:%S"))
-logger.addHandler(file_handler)
+if log_to_file:
+    file_handler = logging.FileHandler("bot.log", mode="w", encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+    logger.addHandler(file_handler)
 
 # Get git hash, if possible
 try:
