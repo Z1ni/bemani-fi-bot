@@ -143,7 +143,7 @@ async def add(ctx, game):
     role = roles.get(game)
     if role is None:
         logger.warning(
-            "User %s tried to add nonexistant game role \"%s\"" % (user, game))
+            "User %s tried to add nonexistent game role \"%s\"" % (user, game))
         # Add error reaction
         await ctx.message.add_reaction("\u274c")
         return
@@ -183,7 +183,7 @@ async def remove(ctx, game):
         role = roles.get(game)
         if role is None:
             logger.warning(
-                "User %s tried to remove nonexistant game role \"%s\"" % (user, game))
+                "User %s tried to remove nonexistent game role \"%s\"" % (user, game))
             # Add error reaction
             await ctx.message.add_reaction("\u274c")
             return
@@ -235,7 +235,7 @@ async def area_add(ctx, area):
     role = area_roles.get(area)
     if role is None:
         logger.warning(
-            "User %s tried to add nonexistant area role \"%s\"" % (user, area))
+            "User %s tried to add nonexistent area role \"%s\"" % (user, area))
         # Add error reaction
         await ctx.message.add_reaction("\u274c")
         return
@@ -275,7 +275,7 @@ async def area_remove(ctx, area):
         role = area_roles.get(area)
         if role is None:
             logger.warning(
-                "User %s tried to remove nonexistant area role \"%s\"" % (user, area))
+                "User %s tried to remove nonexistent area role \"%s\"" % (user, area))
             # Add error reaction
             await ctx.message.add_reaction("\u274c")
             return
