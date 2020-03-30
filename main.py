@@ -24,16 +24,19 @@ git_hash = None
 async def on_command_error(ctx, exception):
     # Log
     if type(exception) is discord.ext.commands.errors.MissingRequiredArgument:
-        logger.warning("User %s did not supply enough arguments for command \"%s\"" % (ctx.author, ctx.command))
+        logger.warning("User %s did not supply enough arguments for command \"%s\"" % (
+            ctx.author, ctx.command))
         # Add error reaction to the message
         await ctx.message.add_reaction("\u274c")
         return
     elif type(exception) is discord.ext.commands.errors.CommandNotFound:
-        logger.warning("User %s tried to run non-existant command \"%s\"" % (ctx.author, ctx.message.content))
+        logger.warning("User %s tried to run non-existant command \"%s\"" %
+                       (ctx.author, ctx.message.content))
         return
 
     logger.error("Exception in command \"%s\"" % ctx.command)
-    trace_str = traceback.format_exception(type(exception), exception, exception.__traceback__)
+    trace_str = traceback.format_exception(
+        type(exception), exception, exception.__traceback__)
     for row in trace_str:
         logger.error(row.rstrip())
 
@@ -49,19 +52,22 @@ async def on_ready():
     await bot.user.edit(username=nick)
 
     # Get roles that have names in the config
-    game_roles = list(filter(lambda r: r.name in config["roles"], server.roles))
+    game_roles = list(
+        filter(lambda r: r.name in config["roles"], server.roles))
     for role in game_roles:
         roles[role.name.lower()] = role
 
     # Get area roles
-    srv_area_roles = list(filter(lambda r: r.name in config["areas"], server.roles))
+    srv_area_roles = list(
+        filter(lambda r: r.name in config["areas"], server.roles))
     for role in srv_area_roles:
         area_roles[role.name.lower()] = role
 
     known_roles_str = ", ".join([role.name for role in game_roles]) or "-"
     logger.info("Known game roles: %s" % known_roles_str)
 
-    known_area_roles_str = ", ".join([role.name for role in srv_area_roles]) or "-"
+    known_area_roles_str = ", ".join(
+        [role.name for role in srv_area_roles]) or "-"
     logger.info("Known area roles: %s" % known_area_roles_str)
 
     logger.info("Ready")
@@ -86,18 +92,21 @@ async def add(ctx, game):
         server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            logger.error("Could not get user %s from server %s" %
+                         (ctx.author, server))
             await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
-        logger.warning("User %s tried to add game role in #%s" % (user, ctx.message.channel.name))
+        logger.warning("User %s tried to add game role in #%s" %
+                       (user, ctx.message.channel.name))
         return
 
     game = game.lower()
     role = roles.get(game)
     if role is None:
-        logger.warning("User %s tried to add nonexistant game role \"%s\"" % (user, game))
+        logger.warning(
+            "User %s tried to add nonexistant game role \"%s\"" % (user, game))
         # Add error reaction
         await ctx.message.add_reaction("\u274c")
         return
@@ -120,12 +129,14 @@ async def remove(ctx, game):
         server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            logger.error("Could not get user %s from server %s" %
+                         (ctx.author, server))
             await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
-        logger.warning("User %s tried to remove game role in #%s" % (user, ctx.message.channel.name))
+        logger.warning("User %s tried to remove game role in #%s" %
+                       (user, ctx.message.channel.name))
         return
 
     game = game.lower()
@@ -134,7 +145,8 @@ async def remove(ctx, game):
     if not remove_all_game_roles:
         role = roles.get(game)
         if role is None:
-            logger.warning("User %s tried to remove nonexistant game role \"%s\"" % (user, game))
+            logger.warning(
+                "User %s tried to remove nonexistant game role \"%s\"" % (user, game))
             # Add error reaction
             await ctx.message.add_reaction("\u274c")
             return
@@ -172,18 +184,21 @@ async def area_add(ctx, area):
         server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            logger.error("Could not get user %s from server %s" %
+                         (ctx.author, server))
             await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
-        logger.warning("User %s tried to add area role in #%s" % (user, ctx.message.channel.name))
+        logger.warning("User %s tried to add area role in #%s" %
+                       (user, ctx.message.channel.name))
         return
 
     area = area.lower()
     role = area_roles.get(area)
     if role is None:
-        logger.warning("User %s tried to add nonexistant area role \"%s\"" % (user, area))
+        logger.warning(
+            "User %s tried to add nonexistant area role \"%s\"" % (user, area))
         # Add error reaction
         await ctx.message.add_reaction("\u274c")
         return
@@ -206,12 +221,14 @@ async def area_remove(ctx, area):
         server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            logger.error("Could not get user %s from server %s" %
+                         (ctx.author, server))
             await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
-        logger.warning("User %s tried to remove area role in #%s" % (user, ctx.message.channel.name))
+        logger.warning("User %s tried to remove area role in #%s" %
+                       (user, ctx.message.channel.name))
         return
 
     area = area.lower()
@@ -220,7 +237,8 @@ async def area_remove(ctx, area):
     if not remove_all_area_roles:
         role = area_roles.get(area)
         if role is None:
-            logger.warning("User %s tried to remove nonexistant area role \"%s\"" % (user, area))
+            logger.warning(
+                "User %s tried to remove nonexistant area role \"%s\"" % (user, area))
             # Add error reaction
             await ctx.message.add_reaction("\u274c")
             return
@@ -249,12 +267,14 @@ async def version(ctx):
         server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            logger.error("Could not get user %s from server %s" %
+                         (ctx.author, server))
             await ctx.send("Could not get your user info. Are you on the server?")
             return
     elif ctx.message.channel.name != config["bot_channel"]:
         # Only allow this from bot channel
-        logger.warning("User %s tried to query version info in #%s" % (user, ctx.message.channel.name))
+        logger.warning("User %s tried to query version info in #%s" %
+                       (user, ctx.message.channel.name))
         return
 
     logger.info("User %s queried version information" % user)
@@ -274,7 +294,8 @@ async def quit(ctx):
         server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
         if user is None:
-            logger.error("Could not get user %s from server %s" % (ctx.author, server))
+            logger.error("Could not get user %s from server %s" %
+                         (ctx.author, server))
             await ctx.send("Could not get your user info. Are you on the server?")
             return
 
@@ -282,7 +303,8 @@ async def quit(ctx):
     admin_role_name = config["admin_role"]
     if len(admin_role_name) > 0:
         # Get admin role
-        admin_role = discord.utils.get(discord.utils.get(bot.guilds).roles, name=admin_role_name)
+        admin_role = discord.utils.get(discord.utils.get(
+            bot.guilds).roles, name=admin_role_name)
         has_admin_role = admin_role in user.roles
     else:
         logger.debug("No admin role configured, not checking")
@@ -310,7 +332,8 @@ def read_config():
             lines = [l.strip() for l in f.readlines()]
     except Exception:
         # Can't open config
-        logger.critical("Config file opening failed! Check that \"%s\" exists." % config_path)
+        logger.critical(
+            "Config file opening failed! Check that \"%s\" exists." % config_path)
         sys.exit(1)
 
     for line_no, line in enumerate(lines):
@@ -324,7 +347,8 @@ def read_config():
             if value.startswith("["):
                 # List, separated by ','
                 logger.debug("Config parser encountered a list: %s" % value)
-                value = [i.strip() for i in value.split("[")[1].split("]")[0].split(",")]
+                value = [i.strip()
+                         for i in value.split("[")[1].split("]")[0].split(",")]
                 logger.debug("Parsed list: %s" % value)
         except Exception:
             # Invalid line
@@ -343,12 +367,15 @@ log_to_file = "-l" in sys.argv[1:]
 discord_logger = logging.getLogger("discord")
 discord_logger.setLevel(logging.WARNING)
 discord_handler = logging.StreamHandler()
-discord_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+discord_handler.setFormatter(logging.Formatter(
+    "[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
 discord_logger.addHandler(discord_handler)
 # Log to file
 if log_to_file:
-    discord_file_handler = logging.FileHandler("discord.log", mode="w", encoding="utf-8")
-    discord_file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+    discord_file_handler = logging.FileHandler(
+        "discord.log", mode="w", encoding="utf-8")
+    discord_file_handler.setFormatter(logging.Formatter(
+        "[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
     discord_logger.addHandler(discord_file_handler)
 
 
@@ -356,17 +383,20 @@ if log_to_file:
 logger = logging.getLogger("bot")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+handler.setFormatter(logging.Formatter(
+    "[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
 logger.addHandler(handler)
 # Log to file
 if log_to_file:
     file_handler = logging.FileHandler("bot.log", mode="w", encoding="utf-8")
-    file_handler.setFormatter(logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+    file_handler.setFormatter(logging.Formatter(
+        "[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
     logger.addHandler(file_handler)
 
 # Get git hash, if possible
 try:
-    git_hash = subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
+    git_hash = subprocess.check_output(
+        ["git", "describe", "--always"]).strip().decode("utf-8")
 except Exception:
     git_hash = os.environ.get("GIT_COMMIT")
     if not git_hash:
