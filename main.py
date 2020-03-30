@@ -14,11 +14,37 @@ bot = commands.Bot(command_prefix="!", description=description)
 config = {}
 roles = {}
 area_roles = {}
+admin_role = None
 logger = None
 git_hash = None
 
 
 ################################################################################
+
+class NotAdminFailure(commands.CheckFailure):
+    pass
+
+
+async def admin_check(ctx):
+    user = ctx.author
+    if isinstance(ctx.channel, discord.DMChannel):
+        # Private message
+        # Get the user (Member) from the server
+        server = discord.utils.get(bot.guilds)
+        user = server.get_member_named(str(user))
+        if user is None:
+            logger.error("Could not get user %s from server %s" %
+                         (ctx.author, server))
+            await ctx.send("Could not get your user info. Are you on the server?")
+            return
+
+    if admin_role is None or admin_role in user.roles:
+        return True
+    raise NotAdminFailure()
+
+
+only_admin = commands.check(admin_check)
+
 
 @bot.event
 async def on_command_error(ctx, exception):
@@ -32,6 +58,12 @@ async def on_command_error(ctx, exception):
     elif type(exception) is discord.ext.commands.errors.CommandNotFound:
         logger.warning("User %s tried to run non-existant command \"%s\"" %
                        (ctx.author, ctx.message.content))
+        return
+    elif type(exception) is NotAdminFailure:
+        logger.warning("User %s tried to run admin command \"%s\"" %
+                       (ctx.author, ctx.message.content))
+        # Add error reaction to the message
+        await ctx.message.add_reaction("\u274c")
         return
 
     logger.error("Exception in command \"%s\"" % ctx.command)
@@ -62,6 +94,11 @@ async def on_ready():
         filter(lambda r: r.name in config["areas"], server.roles))
     for role in srv_area_roles:
         area_roles[role.name.lower()] = role
+
+    # Get admin role
+    global admin_role
+    admin_role = discord.utils.get(discord.utils.get(
+        bot.guilds).roles, name=config["admin_role"])
 
     known_roles_str = ", ".join([role.name for role in game_roles]) or "-"
     logger.info("Known game roles: %s" % known_roles_str)
@@ -284,40 +321,8 @@ async def version(ctx):
 
 
 @bot.command()
+@only_admin
 async def quit(ctx):
-    # Check if the user is an admin
-    user = ctx.author
-
-    if isinstance(ctx.channel, discord.DMChannel):
-        # Private message
-        # Get the user (Member) from the server
-        server = discord.utils.get(bot.guilds)
-        user = server.get_member_named(str(user))
-        if user is None:
-            logger.error("Could not get user %s from server %s" %
-                         (ctx.author, server))
-            await ctx.send("Could not get your user info. Are you on the server?")
-            return
-
-    has_admin_role = False
-    admin_role_name = config["admin_role"]
-    if len(admin_role_name) > 0:
-        # Get admin role
-        admin_role = discord.utils.get(discord.utils.get(
-            bot.guilds).roles, name=admin_role_name)
-        has_admin_role = admin_role in user.roles
-    else:
-        logger.debug("No admin role configured, not checking")
-
-    permissions = user.guild_permissions
-    permitted = permissions.administrator or has_admin_role
-
-    if not permitted:
-        logger.info("User %s tried to quit bot, denied" % user)
-        # Add error reaction
-        await ctx.message.add_reaction("\u274c")
-        return
-
     logger.info("Quitting")
     await bot.close()
 
