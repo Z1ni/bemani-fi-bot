@@ -25,10 +25,27 @@ class NotAdminFailure(commands.CheckFailure):
     pass
 
 
+class NoPublicCommandsFailure(commands.CheckFailure):
+    pass
+
+
 async def admin_check(ctx):
+    user = await get_user(ctx)
+    if admin_role is None or admin_role in user.roles:
+        return True
+    raise NotAdminFailure()
+
+
+async def privmsg_or_botchannel_check(ctx):
+    if ctx.guild is None or ctx.message.channel.name == config["bot_channel"]:
+        # Private message or in bot channel
+        return True
+    raise NoPublicCommandsFailure()
+
+
+async def get_user(ctx):
     user = ctx.author
-    if isinstance(ctx.channel, discord.DMChannel):
-        # Private message
+    if ctx.guild is None:
         # Get the user (Member) from the server
         server = discord.utils.get(bot.guilds)
         user = server.get_member_named(str(user))
@@ -36,14 +53,11 @@ async def admin_check(ctx):
             logger.error("Could not get user %s from server %s" %
                          (ctx.author, server))
             await ctx.send("Could not get your user info. Are you on the server?")
-            return
-
-    if admin_role is None or admin_role in user.roles:
-        return True
-    raise NotAdminFailure()
+    return user
 
 
 only_admin = commands.check(admin_check)
+no_public = commands.check(privmsg_or_botchannel_check)
 
 
 @bot.event
@@ -64,6 +78,10 @@ async def on_command_error(ctx, exception):
                        (ctx.author, ctx.message.content))
         # Add error reaction to the message
         await ctx.message.add_reaction("\u274c")
+        return
+    elif type(exception) is NoPublicCommandsFailure:
+        logger.warning("User %s tried to execute command \"%s\" in #%s" % (
+            ctx.author, ctx.command, ctx.message.channel.name))
         return
 
     logger.error("Exception in command \"%s\"" % ctx.command)
@@ -119,25 +137,13 @@ async def game(ctx):
 
 
 @game.command()
+@no_public
 async def add(ctx, game):
-    user = ctx.author
+    user = await get_user(ctx)
 
-    if isinstance(ctx.channel, discord.DMChannel):
+    if ctx.guild is None:
         # Private message
         logger.info("Role add request in private message from %s" % user)
-        # Get the user (Member) from the server
-        server = discord.utils.get(bot.guilds)
-        user = server.get_member_named(str(user))
-        if user is None:
-            logger.error("Could not get user %s from server %s" %
-                         (ctx.author, server))
-            await ctx.send("Could not get your user info. Are you on the server?")
-            return
-    elif ctx.message.channel.name != config["bot_channel"]:
-        # Only allow this from bot channel
-        logger.warning("User %s tried to add game role in #%s" %
-                       (user, ctx.message.channel.name))
-        return
 
     game = game.lower()
     role = roles.get(game)
@@ -156,25 +162,13 @@ async def add(ctx, game):
 
 
 @game.command()
+@no_public
 async def remove(ctx, game):
-    user = ctx.author
+    user = await get_user(ctx)
 
-    if isinstance(ctx.channel, discord.DMChannel):
+    if ctx.guild is None:
         # Private message
         logger.info("Role removal request in private message from %s" % user)
-        # Get the user (Member) from the server
-        server = discord.utils.get(bot.guilds)
-        user = server.get_member_named(str(user))
-        if user is None:
-            logger.error("Could not get user %s from server %s" %
-                         (ctx.author, server))
-            await ctx.send("Could not get your user info. Are you on the server?")
-            return
-    elif ctx.message.channel.name != config["bot_channel"]:
-        # Only allow this from bot channel
-        logger.warning("User %s tried to remove game role in #%s" %
-                       (user, ctx.message.channel.name))
-        return
 
     game = game.lower()
     remove_all_game_roles = game == "*"
@@ -211,25 +205,13 @@ async def area(ctx):
 
 
 @area.command(name="add")
+@no_public
 async def area_add(ctx, area):
-    user = ctx.author
+    user = await get_user(ctx)
 
-    if isinstance(ctx.channel, discord.DMChannel):
+    if ctx.guild is None:
         # Private message
         logger.info("Area add request in private message from %s" % user)
-        # Get the user (Member) from the server
-        server = discord.utils.get(bot.guilds)
-        user = server.get_member_named(str(user))
-        if user is None:
-            logger.error("Could not get user %s from server %s" %
-                         (ctx.author, server))
-            await ctx.send("Could not get your user info. Are you on the server?")
-            return
-    elif ctx.message.channel.name != config["bot_channel"]:
-        # Only allow this from bot channel
-        logger.warning("User %s tried to add area role in #%s" %
-                       (user, ctx.message.channel.name))
-        return
 
     area = area.lower()
     role = area_roles.get(area)
@@ -248,25 +230,13 @@ async def area_add(ctx, area):
 
 
 @area.command(name="remove")
+@no_public
 async def area_remove(ctx, area):
-    user = ctx.author
+    user = await get_user(ctx)
 
-    if isinstance(ctx.channel, discord.DMChannel):
+    if ctx.guild is None:
         # Private message
-        logger.info("Role removal request in private message from %s" % user)
-        # Get the user (Member) from the server
-        server = discord.utils.get(bot.guilds)
-        user = server.get_member_named(str(user))
-        if user is None:
-            logger.error("Could not get user %s from server %s" %
-                         (ctx.author, server))
-            await ctx.send("Could not get your user info. Are you on the server?")
-            return
-    elif ctx.message.channel.name != config["bot_channel"]:
-        # Only allow this from bot channel
-        logger.warning("User %s tried to remove area role in #%s" %
-                       (user, ctx.message.channel.name))
-        return
+        logger.info("Area removal request in private message from %s" % user)
 
     area = area.lower()
     remove_all_area_roles = area == "*"
@@ -295,25 +265,9 @@ async def area_remove(ctx, area):
 
 
 @bot.command()
+@no_public
 async def version(ctx):
-    user = ctx.author
-
-    if isinstance(ctx.channel, discord.DMChannel):
-        # Private message
-        # Get the user (Member) from the server
-        server = discord.utils.get(bot.guilds)
-        user = server.get_member_named(str(user))
-        if user is None:
-            logger.error("Could not get user %s from server %s" %
-                         (ctx.author, server))
-            await ctx.send("Could not get your user info. Are you on the server?")
-            return
-    elif ctx.message.channel.name != config["bot_channel"]:
-        # Only allow this from bot channel
-        logger.warning("User %s tried to query version info in #%s" %
-                       (user, ctx.message.channel.name))
-        return
-
+    user = await get_user(ctx)
     logger.info("User %s queried version information" % user)
 
     # Return version info
@@ -322,6 +276,7 @@ async def version(ctx):
 
 @bot.command()
 @only_admin
+@no_public
 async def quit(ctx):
     logger.info("Quitting")
     await bot.close()
