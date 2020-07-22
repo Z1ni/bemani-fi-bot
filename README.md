@@ -2,7 +2,7 @@
 
 ## Requirements
 * Python 3.5.3+
-* discord.py 1.* (currently pinned to 1.3.2)
+* discord.py 1.* (currently pinned to 1.3.4)
 
 ## Installation
 ### Docker (recommended)
