@@ -50,12 +50,12 @@ async def privmsg_or_botchannel_check(ctx):
 async def get_user(ctx):
     user = ctx.author
     if ctx.guild is None:
-        # Get the user (Member) from the server
-        server = discord.utils.get(bot.guilds)
-        user = server.get_member(user.id)
+        # Get the user (Member) from the guild
+        guild = discord.utils.get(bot.guilds)
+        user = guild.get_member(user.id)
         if user is None:
-            logger.error("Could not get user %s from server %s" %
-                         (ctx.author, server))
+            logger.error("Could not get user %s from guild %s" %
+                         (ctx.author, guild))
             await ctx.send("Could not get your user info. Are you on the server?")
     return user
 
@@ -102,18 +102,18 @@ async def on_ready():
     # Change nick
     nick = config["nick"]
     logger.info("Changing nick to %s" % nick)
-    server = discord.utils.get(bot.guilds)
+    guild = discord.utils.get(bot.guilds)
     await bot.user.edit(username=nick)
 
     # Get roles that have names in the config
     game_roles = list(
-        filter(lambda r: r.name in config["roles"], server.roles))
+        filter(lambda r: r.name in config["roles"], guild.roles))
     for role in game_roles:
         roles[role.name.lower()] = role
 
     # Get area roles
     srv_area_roles = list(
-        filter(lambda r: r.name in config["areas"], server.roles))
+        filter(lambda r: r.name in config["areas"], guild.roles))
     for role in srv_area_roles:
         area_roles[role.name.lower()] = role
 
