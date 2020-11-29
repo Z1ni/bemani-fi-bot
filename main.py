@@ -292,7 +292,7 @@ def read_config():
     lines = []
     config_path = "bemani.conf"
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             lines = [l.strip() for l in f.readlines()]
     except Exception:
         # Can't open config
