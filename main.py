@@ -10,7 +10,11 @@ import traceback
 import subprocess
 
 description = """BemaniFiBot"""
-bot = commands.Bot(command_prefix="!", description=description)
+
+intents = discord.Intents(messages=True, guilds=True, members=True)
+
+bot = commands.Bot(command_prefix="!",
+                   description=description, intents=intents)
 config = {}
 roles = {}
 area_roles = {}
@@ -48,7 +52,7 @@ async def get_user(ctx):
     if ctx.guild is None:
         # Get the user (Member) from the server
         server = discord.utils.get(bot.guilds)
-        user = server.get_member_named(str(user))
+        user = server.get_member(user.id)
         if user is None:
             logger.error("Could not get user %s from server %s" %
                          (ctx.author, server))
