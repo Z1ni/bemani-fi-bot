@@ -2,7 +2,7 @@
 
 ## Requirements
 * Python 3.5.3+
-* discord.py 1.* (currently pinned to 1.3.4)
+* discord.py 1.* (currently pinned to 1.5.1)
 
 ## Installation
 ### Docker (recommended)
@@ -51,6 +51,8 @@ $ source venv/bin/activate
 The bot always reads `bemani.conf` for configuration. See `bemani.conf.example` for an example configuration.
 
 The token key must have a Discord bot token in it as a value.
+
+The bot must have access to the privileged server members intent. Enable it in the Discord Developer Portal.
 
 ### Game roles
 Role names must be provided in the config. For example for server roles named `SDVX`, `IIDX` and `Pop'n` the config file will have the following:
