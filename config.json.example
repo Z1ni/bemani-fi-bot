@@ -1,0 +1,35 @@
+{
+    "token": "Discord bot token",
+    "nick": "Bot nick",
+    "guild_id": guid_id_number,
+    "admin_role_id": admin_role_id_number,
+    "game_roles": [
+        {
+            "id": role_id_number,
+            "name": "SDVX",
+            "description": "Swish swoosh"
+        },
+        {
+            "id": role_id_number,
+            "name": "IIDX",
+            "description": "The ultimate system beatmania deluxe version"
+        },
+        {
+            "id": role_id_number,
+            "name": "Pop'n Music",
+            "description": "ポップンミュージック"
+        }
+    ],
+    "area_roles": [
+        {
+            "id": role_id_number,
+            "name": "Basement",
+            "description": ""
+        },
+        {
+            "id": role_id_number,
+            "name": "Finland",
+            "description": ""
+        }
+    ]
+}

@@ -1,379 +1,293 @@
-#!/usr/bin/env python3
-
-import discord
-from discord.ext import commands
-import asyncio
+import json
 import logging
 import os
-import sys
-import traceback
 import subprocess
+from typing import Dict
+import discord
+from discord import Client, SelectOption, Interaction, Intents, ButtonStyle, Embed, Message, DMChannel
+from discord.ui import Select, View, Button
+from discord.app_commands import CommandTree
+
+
+class BotClient(Client):
+    def __init__(self, nick, guild, game_roles, area_roles) -> None:
+        intents = Intents.default()
+        super().__init__(intents=intents)
+
+        self.tree = CommandTree(self)
+
+        self.game_roles = {}
+        self.area_roles = {}
+
+        self._nick = nick
+        self._guild = guild
+        self._game_roles = game_roles
+        self._area_roles = area_roles
+
+        self._logger = logging.getLogger("bot.client")
+
+    async def on_ready(self):
+        self._logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
+
+        # Set nick
+        self._logger.info(f"Changing nick to \"{self._nick}\"")
+        await self.user.edit(username=self._nick)
 
-description = """BemaniFiBot"""
-
-intents = discord.Intents(messages=True, guilds=True, members=True)
-
-bot = commands.Bot(command_prefix="!",
-                   description=description, intents=intents)
-config = {}
-roles = {}
-area_roles = {}
-admin_role = None
-logger = None
-git_hash = None
-
-
-################################################################################
-
-class NotAdminFailure(commands.CheckFailure):
-    pass
-
-
-class NoPublicCommandsFailure(commands.CheckFailure):
-    pass
-
-
-async def admin_check(ctx):
-    user = await get_user(ctx)
-    if admin_role is None or admin_role in user.roles:
-        return True
-    raise NotAdminFailure()
-
-
-async def privmsg_or_botchannel_check(ctx):
-    if ctx.guild is None or ctx.message.channel.name == config["bot_channel"]:
-        # Private message or in bot channel
-        return True
-    raise NoPublicCommandsFailure()
-
-
-async def get_user(ctx):
-    user = ctx.author
-    if ctx.guild is None:
-        # Get the user (Member) from the guild
-        guild = discord.utils.get(bot.guilds)
-        user = guild.get_member(user.id)
-        if user is None:
-            logger.error("Could not get user %s from guild %s" %
-                         (ctx.author, guild))
-            await ctx.send("Could not get your user info. Are you on the server?")
-    return user
-
-
-only_admin = commands.check(admin_check)
-no_public = commands.check(privmsg_or_botchannel_check)
-
-
-@bot.event
-async def on_command_error(ctx, exception):
-    # Log
-    if type(exception) is discord.ext.commands.errors.MissingRequiredArgument:
-        logger.warning("User %s did not supply enough arguments for command \"%s\"" % (
-            ctx.author, ctx.command))
-        # Add error reaction to the message
-        await ctx.message.add_reaction("\u274c")
-        return
-    elif type(exception) is discord.ext.commands.errors.CommandNotFound:
-        logger.warning("User %s tried to run non-existant command \"%s\"" %
-                       (ctx.author, ctx.message.content))
-        return
-    elif type(exception) is NotAdminFailure:
-        logger.warning("User %s tried to run admin command \"%s\"" %
-                       (ctx.author, ctx.message.content))
-        # Add error reaction to the message
-        await ctx.message.add_reaction("\u274c")
-        return
-    elif type(exception) is NoPublicCommandsFailure:
-        logger.warning("User %s tried to execute command \"%s\" in #%s" % (
-            ctx.author, ctx.command, ctx.message.channel.name))
-        return
-
-    logger.error("Exception in command \"%s\"" % ctx.command)
-    trace_str = traceback.format_exception(
-        type(exception), exception, exception.__traceback__)
-    for row in trace_str:
-        logger.error(row.rstrip())
-
-
-@bot.event
-async def on_ready():
-    logger.info("Logged in as %s" % bot.user)
-
-    # Change nick
-    nick = config["nick"]
-    logger.info("Changing nick to %s" % nick)
-    guild = discord.utils.get(bot.guilds)
-    await bot.user.edit(username=nick)
-
-    # Get roles that have names in the config
-    game_roles = list(
-        filter(lambda r: r.name in config["roles"], guild.roles))
-    for role in game_roles:
-        roles[role.name.lower()] = role
-
-    # Get area roles
-    srv_area_roles = list(
-        filter(lambda r: r.name in config["areas"], guild.roles))
-    for role in srv_area_roles:
-        area_roles[role.name.lower()] = role
-
-    # Get admin role
-    global admin_role
-    admin_role = discord.utils.get(discord.utils.get(
-        bot.guilds).roles, name=config["admin_role"])
-
-    known_roles_str = ", ".join([role.name for role in game_roles]) or "-"
-    logger.info("Known game roles: %s" % known_roles_str)
-
-    known_area_roles_str = ", ".join(
-        [role.name for role in srv_area_roles]) or "-"
-    logger.info("Known area roles: %s" % known_area_roles_str)
-
-    logger.info("Ready")
-
-
-@bot.group()
-async def game(ctx):
-    if ctx.invoked_subcommand is None:
-        logger.warning("No subcommand given for game command")
-        # Add error reaction
-        await ctx.message.add_reaction("\u274c")
-
-
-@game.command()
-@no_public
-async def add(ctx, game):
-    user = await get_user(ctx)
-
-    if ctx.guild is None:
-        # Private message
-        logger.info("Role add request in private message from %s" % user)
-
-    game = game.lower()
-    role = roles.get(game)
-    if role is None:
-        logger.warning(
-            "User %s tried to add nonexistent game role \"%s\"" % (user, game))
-        # Add error reaction
-        await ctx.message.add_reaction("\u274c")
-        return
-
-    # Add the new role
-    logger.info("Adding role %s for user %s" % (role.name, user))
-    await user.add_roles(role)
-    # Add success reaction
-    await ctx.message.add_reaction("\u2705")
-
-
-@game.command()
-@no_public
-async def remove(ctx, game):
-    user = await get_user(ctx)
-
-    if ctx.guild is None:
-        # Private message
-        logger.info("Role removal request in private message from %s" % user)
-
-    game = game.lower()
-    remove_all_game_roles = game == "*"
-
-    if not remove_all_game_roles:
-        role = roles.get(game)
-        if role is None:
-            logger.warning(
-                "User %s tried to remove nonexistent game role \"%s\"" % (user, game))
-            # Add error reaction
-            await ctx.message.add_reaction("\u274c")
-            return
-
-        # Remove role from user
-        logger.info("Removing game role %s from user %s" % (role.name, user))
-        await user.remove_roles(role)
-        # Add success reaction
-        await ctx.message.add_reaction("\u2705")
-    else:
-        # Remove all game roles from user if the game parameter was "*"
-        logger.info("Removing all game roles from %s" % user)
-        game_roles = [i[1] for i in roles.items()]
-        await user.remove_roles(*game_roles)
-        # Add success reaction
-        await ctx.message.add_reaction("\u2705")
-
-
-@bot.group()
-async def area(ctx):
-    if ctx.invoked_subcommand is None:
-        logger.warning("No subcommand given for area command")
-        # Add error reaction
-        await ctx.message.add_reaction("\u274c")
-
-
-@area.command(name="add")
-@no_public
-async def area_add(ctx, area):
-    user = await get_user(ctx)
-
-    if ctx.guild is None:
-        # Private message
-        logger.info("Area add request in private message from %s" % user)
-
-    area = area.lower()
-    role = area_roles.get(area)
-    if role is None:
-        logger.warning(
-            "User %s tried to add nonexistent area role \"%s\"" % (user, area))
-        # Add error reaction
-        await ctx.message.add_reaction("\u274c")
-        return
-
-    # Add the new role
-    logger.info("Adding role %s for user %s" % (role.name, user))
-    await user.add_roles(role)
-    # Add success reaction
-    await ctx.message.add_reaction("\u2705")
-
-
-@area.command(name="remove")
-@no_public
-async def area_remove(ctx, area):
-    user = await get_user(ctx)
-
-    if ctx.guild is None:
-        # Private message
-        logger.info("Area removal request in private message from %s" % user)
-
-    area = area.lower()
-    remove_all_area_roles = area == "*"
-
-    if not remove_all_area_roles:
-        role = area_roles.get(area)
-        if role is None:
-            logger.warning(
-                "User %s tried to remove nonexistent area role \"%s\"" % (user, area))
-            # Add error reaction
-            await ctx.message.add_reaction("\u274c")
-            return
-
-        # Remove role from user
-        logger.info("Removing area role %s from user %s" % (role.name, user))
-        await user.remove_roles(role)
-        # Add success reaction
-        await ctx.message.add_reaction("\u2705")
-    else:
-        # Remove all area roles from user if the area parameter was "*"
-        logger.info("Removing all area roles from %s" % user)
-        area_role_entries = [i[1] for i in area_roles.items()]
-        await user.remove_roles(*area_role_entries)
-        # Add success reaction
-        await ctx.message.add_reaction("\u2705")
-
-
-@bot.command()
-@no_public
-async def version(ctx):
-    user = await get_user(ctx)
-    logger.info("User %s queried version information" % user)
-
-    # Return version info
-    await ctx.send("Git commit: %s" % (git_hash or "?"))
-
-
-@bot.command()
-@only_admin
-@no_public
-async def quit(ctx):
-    logger.info("Quitting")
-    await bot.close()
-
-################################################################################
-
-
-def read_config():
-    lines = []
-    config_path = "bemani.conf"
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            lines = [l.strip() for l in f.readlines()]
-    except Exception:
-        # Can't open config
-        logger.critical(
-            "Config file opening failed! Check that \"%s\" exists." % config_path)
-        sys.exit(1)
-
-    for line_no, line in enumerate(lines):
-        if len(line.strip()) == 0:
-            continue
-        if line.startswith("#"):
-            continue
-        key, value = (None, None)
-        try:
-            key, value = [s.strip() for s in line.split("=")]
-            if value.startswith("["):
-                # List, separated by ','
-                logger.debug("Config parser encountered a list: %s" % value)
-                value = [i.strip()
-                         for i in value.split("[")[1].split("]")[0].split(",")]
-                logger.debug("Parsed list: %s" % value)
-        except Exception:
-            # Invalid line
-            logger.error("Invalid config line at %d" % line_no + 1)
-            continue
-        config[key] = value
-    logger.info("Config read")
-
-
-if __name__ != "__main__":
-    sys.exit(0)
-
-log_to_file = "-l" in sys.argv[1:]
+        guild = self.guilds[0]
+
+        # Check that the configured roles match with the guild roles
+        for game_role in self._game_roles:
+            role_id = int(game_role["id"])
+            role = guild.get_role(role_id)
+            if role is None:
+                self._logger.warning(f"No role with ID {role_id} in guild {guild}")
+            else:
+                self._logger.debug(f"Found role \"{role.name}\" with ID {role_id} in guild {guild}")
+            self.game_roles[role_id] = {
+                "name": game_role["name"],
+                "description": game_role["description"],
+                "role": role
+            }
+
+        for area_role in self._area_roles:
+            role_id = int(area_role["id"])
+            role = guild.get_role(role_id)
+            if role is None:
+                self._logger.warning(f"No role with ID {role_id} in guild {guild}")
+            else:
+                self._logger.debug(f"Found role \"{role.name}\" with ID {role_id} in guild {guild}")
+            self.area_roles[role_id] = {
+                "name": area_role["name"],
+                "description": area_role["description"],
+                "role": role
+            }
+
+        self._logger.info("Ready")
+
+    async def setup_hook(self) -> None:
+        await self.tree.sync(guild=self._guild)
+
+
+class RoleSelector(Select):
+    def __init__(self, roles: Dict[int, Dict[str, str]], add_roles: bool) -> None:
+        self._logger = logging.getLogger("bot.client.rolesel")
+        self._add_roles = add_roles
+
+        role_opts = []
+        for role_id, role in roles.items():
+            opt = SelectOption(label=role["name"], value=role_id, description=role["description"])
+            role_opts.append(opt)
+
+        super().__init__(placeholder="Select role(s)", min_values=1, max_values=len(role_opts), options=role_opts)
+
+    async def callback(self, interaction: Interaction):
+        self._logger.debug(f"User {interaction.user} selected: {self.values}")
+        roles = []
+        for role_id_str in self.values:
+            role = interaction.user.guild.get_role(int(role_id_str))
+            roles.append(role)
+
+        if self._add_roles:
+            self._logger.info(f"Adding role(s) to {interaction.user}: {roles}")
+            await interaction.user.add_roles(*roles)
+            self._logger.info(f"Roles added to user {interaction.user}")
+        else:
+            self._logger.info(f"Removing role(s) from {interaction.user}: {roles}")
+            await interaction.user.remove_roles(*roles)
+            self._logger.info(f"Roles removed from user {interaction.user}")
+
+        # Get the updated user
+        user = await client.guilds[0].fetch_member(interaction.user.id)
+        # Create a new role manager view to replace the completed view flow
+        text, emb, view = create_role_manager_view(user)
+
+        await interaction.response.edit_message(content=text, embed=emb, view=view)
+
+
+class AddRolesButton(Button):
+
+    def __init__(self, label, roles, enabled):
+        super().__init__(style=ButtonStyle.primary, label=label, disabled=not enabled)
+        self._roles = roles
+
+    async def callback(self, interaction: Interaction):
+        role_view = AddRolesView(self._roles)
+        await interaction.response.edit_message(content="**Add roles**", embed=None, view=role_view)
+
+
+class RemoveRolesButton(Button):
+
+    def __init__(self, label, roles, enabled):
+        super().__init__(style=ButtonStyle.danger, label=label, disabled=not enabled)
+        self._roles = roles
+
+    async def callback(self, interaction: Interaction):
+        role_view = RemoveRolesView(self._roles)
+        await interaction.response.edit_message(content="**Remove roles**", embed=None, view=role_view)
+
+
+class AddRolesView(View):
+    def __init__(self, roles):
+        super().__init__(timeout=None)
+
+        self.add_item(RoleSelector(roles, True))
+
+
+class RemoveRolesView(View):
+    def __init__(self, roles):
+        super().__init__(timeout=None)
+
+        self.add_item(RoleSelector(roles, False))
+
+
+class RoleView(View):
+    def __init__(self, missing_game_roles, current_game_roles, missing_area_roles, current_area_roles):
+        super().__init__(timeout=None)
+
+        has_missing_game_roles = len(missing_game_roles) > 0
+        has_missing_area_roles = len(missing_area_roles) > 0
+        has_game_roles = len(current_game_roles) > 0
+        has_area_roles = len(current_area_roles) > 0
+
+        self.add_item(AddRolesButton("Add game roles", missing_game_roles, has_missing_game_roles))
+        self.add_item(RemoveRolesButton("Remove game roles", current_game_roles, has_game_roles))
+        self.add_item(AddRolesButton("Add area roles", missing_area_roles, has_missing_area_roles))
+        self.add_item(RemoveRolesButton("Remove area roles", current_area_roles, has_area_roles))
+
+###########################################################
+
 
 # Setup discord.py logging
-discord_logger = logging.getLogger("discord")
-discord_logger.setLevel(logging.WARNING)
 discord_handler = logging.StreamHandler()
-discord_handler.setFormatter(logging.Formatter(
-    "[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
-discord_logger.addHandler(discord_handler)
-# Log to file
-if log_to_file:
-    discord_file_handler = logging.FileHandler(
-        "discord.log", mode="w", encoding="utf-8")
-    discord_file_handler.setFormatter(logging.Formatter(
-        "[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
-    discord_logger.addHandler(discord_file_handler)
-
+discord_handler.setLevel(logging.INFO)
+discord_formatter = logging.Formatter("[%(asctime)s] [%(levelname)-8s] [%(name)s] %(message)s", "%Y-%m-%d %H:%M:%S %z")
 
 # Setup own logging
 logger = logging.getLogger("bot")
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter(
-    "[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
+    "[%(asctime)s] [%(levelname)-8s] [%(name)s] %(message)s", "%Y-%m-%d %H:%M:%S %z"))
 logger.addHandler(handler)
-# Log to file
-if log_to_file:
-    file_handler = logging.FileHandler("bot.log", mode="w", encoding="utf-8")
-    file_handler.setFormatter(logging.Formatter(
-        "[%(asctime)s] [%(levelname)-8s] [%(name)s] [%(module)s/%(funcName)s] %(message)s", "%Y-%m-%d %H:%M:%S"))
-    logger.addHandler(file_handler)
 
-# Get git hash, if possible
+# Read config
+with open("config.json", "r", encoding="utf-8") as f:
+    config = json.load(f)
+
+token = config["token"]
+nick = config["nick"]
+conf_game_roles = config["game_roles"]
+conf_area_roles = config["area_roles"]
+admin_role_id = int(config["admin_role_id"])
+
+guild = discord.Object(int(config["guild_id"]))
+
+git_hash = None
 try:
-    git_hash = subprocess.check_output(
-        ["git", "describe", "--always"]).strip().decode("utf-8")
+    git_hash = subprocess.check_output(["git", "describe", "--always"]).strip().decode("utf-8")
 except Exception:
     git_hash = os.environ.get("GIT_COMMIT")
     if not git_hash:
         logger.warning("Could not get Git hash")
 
-# Read config
-read_config()
+if git_hash:
+    logger.info(f"Git hash: {git_hash}")
 
-# Remove bot help command
-bot.remove_command("help")
+###########################################################
 
-# Run
-logger.info("Current Git commit: %s" % (git_hash or "?"))
-logger.info("Starting event loop")
-bot.run(config["token"])
-logger.info("Event loop ended")
+client = BotClient(nick, guild, conf_game_roles, conf_area_roles)
+
+
+def create_role_manager_view(user):
+    missing_game_roles = {}
+    for role_id, role in client.game_roles.items():
+        if user.get_role(role_id):
+            continue
+        missing_game_roles[role_id] = role
+
+    current_game_roles = {}
+    for role in user.roles:
+        if role.id in client.game_roles:
+            current_game_roles[role.id] = client.game_roles[role.id]
+
+    missing_area_roles = {}
+    for role_id, role in client.area_roles.items():
+        if user.get_role(role_id):
+            continue
+        missing_area_roles[role_id] = role
+
+    current_area_roles = {}
+    for role in user.roles:
+        if role.id in client.area_roles:
+            current_area_roles[role.id] = client.area_roles[role.id]
+
+    current_game_roles_str = ""
+    for role_container in current_game_roles.values():
+        role = role_container["role"]
+        current_game_roles_str += f"- {role.mention}\n"
+
+    current_area_roles_str = ""
+    for role_container in current_area_roles.values():
+        role = role_container["role"]
+        current_area_roles_str += f"- {role.mention}\n"
+
+    text = "**Manage your roles**"
+
+    emb = Embed()
+    if current_game_roles:
+        emb.add_field(name="Current game roles", value=current_game_roles_str)
+    if current_area_roles:
+        emb.add_field(name="Current area roles", value=current_area_roles_str)
+
+    if not current_game_roles and not current_area_roles:
+        emb = None
+
+    view = RoleView(missing_game_roles, current_game_roles, missing_area_roles, current_area_roles)
+
+    return (text, emb, view)
+
+
+@client.tree.command(description="Manage your game and area roles", guild=guild)
+async def roles(interaction: Interaction):
+    logger = logging.getLogger("bot.command")
+    logger.info(f"User {interaction.user} wants to manage roles")
+    text, emb, view = create_role_manager_view(interaction.user)
+    await interaction.response.send_message(text, embed=emb, view=view, ephemeral=True)
+    logger.debug(f"User {interaction.user} role manager flow started")
+
+
+@client.event
+async def on_message(msg: Message):
+    if not isinstance(msg.channel, DMChannel) or msg.author.id == client.user.id:
+        return
+
+    logger.info(f"User {msg.author} sent a direct message")
+
+    # This is a DM
+    # Get the roles for this user in the "home guild"
+    try:
+        member = await client.guilds[0].fetch_member(msg.author.id)
+    except discord.NotFound:
+        member = None
+    if not member:
+        logger.warning(f"User {msg.author} is not a member of guild {client.guilds[0]}, ignoring")
+        return
+
+    if not member.get_role(admin_role_id):
+        logger.warning(f"Non-admin member {member} tried to message us, ignoring")
+        return
+
+    # Admin user messaged us something
+    msg_lower = msg.content.lower()
+    if msg_lower == "quit":
+        # Quit
+        logger.info(f"Admin member {member} ordered shutdown")
+        await client.close()
+        return
+
+    if msg_lower == "version":
+        logger.info(f"Admin member {member} requested version information")
+        await msg.reply(f"Git hash: {git_hash or '?'}")
+        return
+
+client.run(token, reconnect=True, log_handler=discord_handler, log_formatter=discord_formatter)
