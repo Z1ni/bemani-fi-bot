@@ -1,20 +1,22 @@
 # Discord bot for Bemani Finland
 
+Single-guild bot for Bemani Finland.
+
 ## Requirements
-* Python 3.5.3+
-* discord.py 1.* (currently pinned to 1.5.1)
+* Python 3.8+
+* discord.py 2.* (currently pinned to 2.0.1)
 
 ## Installation
 ### Docker (recommended)
 1. Install Docker
-2. Create bemani.conf and edit it (see below)
+2. Create `config.json` and edit it (see below)
 ```bash
-$ cp bemani.conf.example bemani.conf
-$ vim bemani.conf
+$ cp config.json.example config.json
+$ vim config.json
 ```
 3. Build image
 ```bash
-# Use build script to populate !version command git commit hash
+# Use build script to populate version command git commit hash
 $ ./docker-build.sh --tag=bemanifibot .
 # Or build without version information
 $ docker build --tag=bemanifibot .
@@ -39,8 +41,8 @@ $ source venv/bin/activate
 ```
 3. Create config and edit it (see below)
 ```bash
-(venv) $ cp bemani.conf.example bemani.conf
-(venv) $ vim bemani.conf
+(venv) $ cp config.json.example config.json
+(venv) $ vim config.json
 ```
 4. Run
 ```bash
@@ -48,14 +50,19 @@ $ source venv/bin/activate
 ```
 
 ## Configuration
-The bot always reads `bemani.conf` for configuration. See `bemani.conf.example` for an example configuration.
+The bot always reads `config.json` for configuration. See `config.json.example` for an example configuration.
 
 The token key must have a Discord bot token in it as a value.
 
-The bot must have access to the privileged server members intent. Enable it in the Discord Developer Portal.
+The bot must have access to the privileged message content intent. Enable it in the Discord Developer Portal.
 
-### Game roles
-Role names must be provided in the config. For example for server roles named `SDVX`, `IIDX` and `Pop'n` the config file will have the following:
-```
-roles = [SDVX, IIDX, Pop'n]
-```
+### Roles
+Role IDs must be provided in the config. The names don't need to match with the server roles.
+
+## Quick help
+
+The role handling is performed with a `/roles` application slash command that creates an ephemeral message with message
+components (buttons and select menus), so the role handling does not pollute any channel nor does it need direct
+messages with the bot.
+
+If in the future Discord allows select menus in modals, this will be refactored to use those.
